@@ -42,6 +42,10 @@ public class GymApplication
                     break;
 
                 case "4":
+                    ViewExercises();
+                    break;
+
+                case "5":
                     isRunning = false;
                     Console.WriteLine("Closing GymApp...");
                     break;
@@ -54,13 +58,14 @@ public class GymApplication
         }
     }
 
-    private void ShowMenu()
+       private void ShowMenu()
     {
         Console.WriteLine("==== GYM APP ====");
         Console.WriteLine("1. Start Workout");
         Console.WriteLine("2. Add Exercise");
         Console.WriteLine("3. View History");
-        Console.WriteLine("4. Exit");
+        Console.WriteLine("4. View Exercises");
+        Console.WriteLine("5. Exit");
         Console.Write("Choose: ");
     }
 
@@ -185,28 +190,66 @@ public class GymApplication
         Console.Clear();
         Console.WriteLine("==== WORKOUT HISTORY ====");
 
-        var sessions = _data.Sessions;
-
-        if (sessions.Count == 0)
+        if (_data.Sessions.Count == 0)
         {
-            Console.WriteLine("No workout sessions found.");
+            Console.WriteLine("No workout history found.");
             Pause();
             return;
         }
 
-        foreach (var session in sessions.OrderByDescending(s => s.Date))
+        for (int i = 0; i < _data.Sessions.Count; i++)
         {
-            Console.WriteLine($"\n{session.Date:yyyy-MM-dd HH:mm}");
+            var session = _data.Sessions[i];
+
+            Console.WriteLine($"\nWorkout {i + 1} - {session.Date}");
+
+            if (session.Entries.Count == 0)
+            {
+                Console.WriteLine(" No exercises logged.");
+                continue;
+            }
+
             foreach (var entry in session.Entries)
             {
-                Console.WriteLine($"  {entry.ExerciseName}");
+                Console.WriteLine($" {entry.ExerciseName}");
+
                 foreach (var set in entry.Sets)
-                    Console.WriteLine($"    {set.Reps} reps @ {set.Weight} kg");
+                {
+                    Console.WriteLine($"   - {set.Reps} reps @ {set.Weight} kg");
+                }
             }
         }
 
         Pause();
     }
+        
+
+    private void ViewExercises() 
+    {
+        Console.Clear();
+        Console.WriteLine("==== EXERCISES ====");
+
+        if (_data.Exercises.Count == 0)
+        {
+            Console.WriteLine("No exercises found.");
+            Pause();
+            return;
+        }
+
+        for (int i = 0; i < _data.Exercises.Count; i++)
+        {
+            var exercise = _data.Exercises[i];
+
+            int usageCount = _data.Sessions.Count(session =>
+                session.Entries.Any(entry => entry.ExerciseId == exercise.Id));
+
+            Console.WriteLine($"{i + 1}. {exercise.Name} (Used {usageCount} times)");
+        }
+
+        Pause();
+    }
+
+    
     private void Pause()
     {
         Console.WriteLine();
