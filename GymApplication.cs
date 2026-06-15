@@ -6,6 +6,7 @@ namespace GymApp;
 
 public class GymApplication
 {
+    private readonly ProgressionService _progressionService;
     private readonly StorageService _storage;
     private readonly GymData _data;
     private readonly WorkoutService _workoutService;
@@ -14,6 +15,7 @@ public class GymApplication
         _storage = new StorageService();
         _data = _storage.LoadData();
         _workoutService = new WorkoutService();
+        _progressionService = new ProgressionService();
     }
 
     public void Run()
@@ -111,10 +113,12 @@ public class GymApplication
             }
 
             var chosenExercise = _data.Exercises[index - 1];
+            ShowExerciseProgress(chosenExercise.Id);
             var entry = new ExerciseEntry
             {
                 ExerciseId = chosenExercise.Id,
                 ExerciseName = chosenExercise.Name
+
             };
 
             while (true)
@@ -169,9 +173,19 @@ public class GymApplication
         Console.Write("Exercise name: ");
         string name = Console.ReadLine()?.Trim() ?? "";
 
-        if (string.IsNullOrEmpty(name))
+        if (string.IsNullOrWhiteSpace(name))
         {
             Console.WriteLine("Name cannot be empty.");
+            Pause();
+            return;
+        }
+
+        bool exerciseExists = _data.Exercises.Any(exercise =>
+            exercise.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+
+        if (exerciseExists)
+        {
+            Console.WriteLine($"Exercise '{name}' already exists.");
             Pause();
             return;
         }
@@ -183,7 +197,6 @@ public class GymApplication
         Console.WriteLine($"Exercise '{name}' added!");
         Pause();
     }
-
 
     private void ViewHistory()
     {
@@ -248,8 +261,38 @@ public class GymApplication
 
         Pause();
     }
+    private void ShowExerciseProgress(Guid exerciseId)
+    {
+        var latestEntry = _progressionService.GetLatestEntryForExercise(_data, exerciseId);
+        var bestSet = _progressionService.GetBestSetForExercise(_data, exerciseId);
+        var totalSets = _progressionService.GetTotalSetsForExercise(_data, exerciseId);
+        var totalVolume = _progressionService.GetTotalVolumeForExercise(_data, exerciseId);
 
-    
+        Console.WriteLine();
+
+        if (latestEntry == null)
+        {
+            Console.WriteLine("No previous results for this exercise.");
+            return;
+        }
+
+        Console.WriteLine("Previous results:");
+
+        Console.WriteLine("Latest session:");
+        foreach (var set in latestEntry.Sets)
+        {
+            Console.WriteLine($"- {set.Reps} reps @ {set.Weight} kg");
+        }
+
+        if (bestSet != null)
+        {
+            Console.WriteLine($"Best set: {bestSet.Reps} reps @ {bestSet.Weight} kg");
+        }
+
+        Console.WriteLine($"Total sets: {totalSets}");
+        Console.WriteLine($"Total volume: {totalVolume} kg");
+    }
+
     private void Pause()
     {
         Console.WriteLine();
