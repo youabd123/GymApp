@@ -1,7 +1,7 @@
 # GymApp
 
 GymApp är en konsolapplikation i C# för att logga träningspass, övningar och set. Projektet är byggt som en grund för att stegvis utveckla en mer komplett träningsapp med historik, progression och statistik.
-
+gymapp
 ## Funktioner
 
 - Lägg till egna övningar
