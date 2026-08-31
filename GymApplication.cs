@@ -1,6 +1,6 @@
-﻿using GymApp.Models;
+﻿using GymApp.Input;
+using GymApp.Models;
 using GymApp.Services;
-using System.Linq;
 
 namespace GymApp;
 
@@ -10,12 +10,15 @@ public class GymApplication
     private readonly StorageService _storage;
     private readonly GymData _data;
     private readonly WorkoutService _workoutService;
+    private readonly ConsoleReader _reader;
+
     public GymApplication()
     {
         _storage = new StorageService();
         _data = _storage.LoadData();
         _workoutService = new WorkoutService();
         _progressionService = new ProgressionService();
+        _reader = new ConsoleReader();
     }
 
     public void Run()
@@ -105,7 +108,7 @@ public class GymApplication
                 continue;
             }
 
-            if (!int.TryParse(input, out int index) || index < 1 || index > _data.Exercises.Count)
+            if (!InputParser.TryParseMenuIndex(input, _data.Exercises.Count, out int index))
             {
                 Console.WriteLine("Invalid choice.");
                 Pause();
@@ -114,16 +117,22 @@ public class GymApplication
 
             var chosenExercise = _data.Exercises[index - 1];
             ShowExerciseProgress(chosenExercise.Id);
-            var entry = new ExerciseEntry
+
+            // Picking the same exercise twice in one session tops up the existing entry
+            // instead of creating a second one for the same ExerciseId.
+            var entry = session.Entries.FirstOrDefault(e => e.ExerciseId == chosenExercise.Id);
+            bool isNewEntry = entry is null;
+
+            entry ??= new ExerciseEntry
             {
                 ExerciseId = chosenExercise.Id,
                 ExerciseName = chosenExercise.Name
-
             };
 
             while (true)
             {
                 Console.WriteLine($"\n--- {chosenExercise.Name} ---");
+                Console.WriteLine($"Sets logged this session: {entry.Sets.Count}");
                 Console.WriteLine("1. Log set");
                 Console.WriteLine("2. Back to exercise menu");
                 Console.Write("Choose: ");
@@ -131,24 +140,31 @@ public class GymApplication
 
                 if (setChoice == "2") break;
 
-                if (setChoice == "1")
+                if (setChoice != "1")
                 {
-                    Console.Write("Reps: ");
-                    if (!int.TryParse(Console.ReadLine(), out int reps) || reps <= 0)
-                    {
-                        Console.WriteLine("Invalid reps.");
-                        continue;
-                    }
-
-                    Console.Write("Weight (kg): ");
-                    if (!decimal.TryParse(Console.ReadLine(), out decimal weight)) weight = 0;
-
-                    entry.Sets.Add(new SetEntry { Reps = reps, Weight = weight });
-                    Console.WriteLine($"  Set logged: {reps} reps @ {weight} kg");
+                    Console.WriteLine("Invalid choice.");
+                    continue;
                 }
+
+                int? reps = _reader.ReadReps("Reps (blank to cancel): ");
+                if (reps is null)
+                {
+                    Console.WriteLine("Set cancelled.");
+                    continue;
+                }
+
+                decimal? weight = _reader.ReadWeight("Weight in kg (blank to cancel): ");
+                if (weight is null)
+                {
+                    Console.WriteLine("Set cancelled.");
+                    continue;
+                }
+
+                entry.Sets.Add(new SetEntry { Reps = reps.Value, Weight = weight.Value });
+                Console.WriteLine($"  Set logged: {reps} reps @ {weight} kg");
             }
 
-            if (entry.Sets.Count > 0)
+            if (isNewEntry && entry.Sets.Count > 0)
                 session.Entries.Add(entry);
         }
 
@@ -210,11 +226,15 @@ public class GymApplication
             return;
         }
 
-        for (int i = 0; i < _data.Sessions.Count; i++)
-        {
-            var session = _data.Sessions[i];
+        var sessions = _data.Sessions
+            .OrderByDescending(session => session.Date)
+            .ToList();
 
-            Console.WriteLine($"\nWorkout {i + 1} - {session.Date}");
+        for (int i = 0; i < sessions.Count; i++)
+        {
+            var session = sessions[i];
+
+            Console.WriteLine($"\nWorkout {i + 1} - {session.Date:yyyy-MM-dd HH:mm}");
 
             if (session.Entries.Count == 0)
             {
