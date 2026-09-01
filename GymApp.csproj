@@ -8,7 +8,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Update="Data\gymdata.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!-- The test project lives under this project's directory, so exclude it from the
