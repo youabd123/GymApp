@@ -7,4 +7,15 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+  </ItemGroup>
+
+  <!-- The test project lives under this project's directory, so exclude it from the
+       default **/*.cs glob — otherwise GymApp tries to compile the test files itself. -->
+  <ItemGroup>
+    <Compile Remove="GymApp.Tests\**" />
+    <None Remove="GymApp.Tests\**" />
+    <EmbeddedResource Remove="GymApp.Tests\**" />
+  </ItemGroup>
+
 </Project>
