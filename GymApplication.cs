@@ -6,7 +6,10 @@ namespace GymApp;
 
 public class GymApplication
 {
+    private const int HistoryPageSize = 10;
+
     private readonly ProgressionService _progressionService;
+    private readonly HistoryService _historyService;
     private readonly StorageService _storage;
     private readonly GymData _data;
     private readonly WorkoutService _workoutService;
@@ -18,6 +21,7 @@ public class GymApplication
         _data = _storage.LoadData();
         _workoutService = new WorkoutService();
         _progressionService = new ProgressionService();
+        _historyService = new HistoryService();
         _reader = new ConsoleReader();
     }
 
@@ -216,46 +220,123 @@ public class GymApplication
 
     private void ViewHistory()
     {
-        Console.Clear();
-        Console.WriteLine("==== WORKOUT HISTORY ====");
+        var sessions = _historyService.GetSessionsNewestFirst(_data);
 
-        if (_data.Sessions.Count == 0)
+        if (sessions.Count == 0)
         {
+            Console.Clear();
+            Console.WriteLine("==== WORKOUT HISTORY ====");
             Console.WriteLine("No workout history found.");
             Pause();
             return;
         }
 
-        var sessions = _data.Sessions
-            .OrderByDescending(session => session.Date)
-            .ToList();
+        int pageCount = (sessions.Count + HistoryPageSize - 1) / HistoryPageSize;
+        int page = 0;
 
-        for (int i = 0; i < sessions.Count; i++)
+        while (true)
         {
-            var session = sessions[i];
+            int offset = page * HistoryPageSize;
+            var pageSessions = sessions.Skip(offset).Take(HistoryPageSize).ToList();
 
-            Console.WriteLine($"\nWorkout {i + 1} - {session.Date:yyyy-MM-dd HH:mm}");
+            Console.Clear();
+            Console.WriteLine($"==== WORKOUT HISTORY ====   (page {page + 1} of {pageCount})");
+            Console.WriteLine();
 
-            if (session.Entries.Count == 0)
+            for (int i = 0; i < pageSessions.Count; i++)
             {
-                Console.WriteLine(" No exercises logged.");
+                var summary = _historyService.GetSummary(pageSessions[i]);
+
+                // Numbering runs across the whole list, not per page, so the same
+                // workout keeps the same number however you got to it.
+                Console.WriteLine(
+                    $"{offset + i + 1,3}. {pageSessions[i].Date:yyyy-MM-dd HH:mm}   " +
+                    $"{Plural(summary.ExerciseCount, "exercise")}, " +
+                    $"{Plural(summary.SetCount, "set")}, {summary.TotalVolume:0.##} kg");
+            }
+
+            var options = new List<string>();
+            if (page > 0) options.Add("p) Previous page");
+            if (page < pageCount - 1) options.Add("n) Next page");
+            options.Add("0) Back");
+
+            Console.WriteLine();
+            Console.WriteLine(string.Join("   ", options));
+            Console.Write("Choose a number for details: ");
+
+            string input = (Console.ReadLine() ?? "").Trim().ToLowerInvariant();
+
+            if (input == "0")
+            {
+                return;
+            }
+
+            if (input == "n" && page < pageCount - 1)
+            {
+                page++;
                 continue;
             }
 
-            foreach (var entry in session.Entries)
+            if (input == "p" && page > 0)
             {
-                Console.WriteLine($" {entry.ExerciseName}");
+                page--;
+                continue;
+            }
 
-                foreach (var set in entry.Sets)
-                {
-                    Console.WriteLine($"   - {set.Reps} reps @ {set.Weight} kg");
-                }
+            // Numbering is global, so a workout can be opened by its number from any page.
+            if (InputParser.TryParseMenuIndex(input, sessions.Count, out int number))
+            {
+                ShowSessionDetails(number, sessions[number - 1]);
+                continue;
+            }
+
+            Console.WriteLine("Invalid choice.");
+            Pause();
+        }
+    }
+
+    private void ShowSessionDetails(int number, WorkoutSession session)
+    {
+        var summary = _historyService.GetSummary(session);
+
+        Console.Clear();
+        Console.WriteLine($"==== WORKOUT {number} ====");
+        Console.WriteLine($"{session.Date:yyyy-MM-dd HH:mm}");
+        Console.WriteLine(
+            $"{Plural(summary.ExerciseCount, "exercise")}, " +
+            $"{Plural(summary.SetCount, "set")}, {summary.TotalVolume:0.##} kg");
+
+        if (session.Entries.Count == 0)
+        {
+            Console.WriteLine();
+            Console.WriteLine("No exercises logged.");
+            Pause();
+            return;
+        }
+
+        foreach (var entry in session.Entries)
+        {
+            Console.WriteLine();
+            Console.WriteLine($"{entry.ExerciseName} ({_historyService.GetEntryVolume(entry):0.##} kg)");
+
+            if (entry.Sets.Count == 0)
+            {
+                Console.WriteLine("   No sets logged.");
+                continue;
+            }
+
+            foreach (var set in entry.Sets)
+            {
+                Console.WriteLine($"   - {set.Reps} reps @ {set.Weight} kg");
             }
         }
 
         Pause();
     }
-        
+
+    private static string Plural(int count, string word) =>
+        count == 1 ? $"{count} {word}" : $"{count} {word}s";
+
 
     private void ViewExercises() 
     {

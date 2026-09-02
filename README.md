@@ -7,9 +7,29 @@ gymapp
 - Lägg till egna övningar
 - Starta ett träningspass
 - Logga set med reps och vikt
+- Se tidigare resultat, bästa set och total volym för en övning innan du kör den
 - Spara träningsdata lokalt i JSON
-- Visa tidigare träningspass
 - Visa övningar och hur ofta de har använts
+
+### Historik
+
+Historiken visar en rad per träningspass, nyaste först, med datum och en
+sammanfattning: antal övningar, antal set och total volym.
+
+```
+==== WORKOUT HISTORY ====   (page 1 of 3)
+
+  1. 2026-08-28 14:20   3 exercises, 12 sets, 4250 kg
+  2. 2026-08-26 17:05   2 exercises, 8 sets, 2900 kg
+
+n) Next page   0) Back
+Choose a number for details:
+```
+
+Listan visar tio pass i taget och bläddras med `n` och `p`. Skriv numret på ett
+pass för att se detaljerna — alla set per övning, plus volymen för varje övning.
+Numreringen löper över hela listan, så samma pass har samma nummer oavsett
+vilken sida du står på.
 
 ## Teknik
 
